@@ -1,1 +1,8 @@
-# Snake_Game-on-cmd-in-windows-11
+# Snake_Game
+
+compile
+```bash
+    gcc Game1.c -o Game.exe
+```
+
+Good luck!
