@@ -10,7 +10,7 @@
 #define mapYlen 20
 
 #define SnakeLen 60*20
-#define FPS_Game 15
+#define FPS_Game 120
 
 // setup map
 char map[mapYlen][mapXlen];
@@ -30,6 +30,8 @@ int cols = sizeof(SnakePoint[0]) / sizeof(SnakePoint[0][0]); // 3
 
 // FPS
 int FPS;
+clock_t Renderer_time = 0;
+double time_FPS = 1000 / FPS_Game;
 
 void PrintCharColor(char c, int color) {
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -111,29 +113,66 @@ void Start_map() {
     printf("|\n");
 }
 
-void showMap() {
-    for(int mapY = 0; mapY < mapYlen; mapY++) {
-        printf("|");
-        for(int mapX = 0; mapX < mapXlen; mapX++) {
-            if(map[mapY][mapX] == '#') {
-                //system("color a");
-                PrintCharColor(map[mapY][mapX], 10);
-            }else if(map[mapY][mapX] == '&') {
-                PrintCharColor(map[mapY][mapX], 9);
-            }else if(map[mapY][mapX] == '$') {
-                PrintCharColor(map[mapY][mapX], 12);
-            }else {
-                PrintCharColor(map[mapY][mapX], 7);
+void Renderer_Buffer() {
+    if(clock() - Renderer_time > time_FPS) {
+        Renderer_time = clock();
+
+        // รองรับ ANSI color + ตัวอักษร + ขอบ + \n
+        long len_Buffer = mapYlen * (mapXlen * 32 + 4) + 16;
+        char outBuffer[len_Buffer];
+
+        long pos = 0;
+        
+        // เคลียร์จอ + ย้าย cursor
+        pos += sprintf(&outBuffer[pos], "\x1b[H");
+
+        // Start_map()
+        pos += sprintf(&outBuffer[pos], "|");
+        for(int i = 0; i < (int)((mapXlen - 12)/2); i++) pos += sprintf(&outBuffer[pos], "-");
+        pos += sprintf(&outBuffer[pos], " Snake Game ");
+        for(int i = 0; i < (int)((mapXlen - 12)/2); i++) pos += sprintf(&outBuffer[pos], "-");
+        pos += sprintf(&outBuffer[pos], "|\n");
+
+        for(int y = 0; y < mapYlen; y++) {
+
+            // ขอบซ้าย
+            outBuffer[pos++] = '|';
+
+            for(int x = 0; x < mapXlen; x++) {
+                char ch = map[y][x];
+
+                int color = 7;
+                if(ch == '#') color = 10;
+                else if(ch == '&') color = 9;
+                else if(ch == '$') color = 12;
+
+                // ANSI แบบเดียวกับ PrintCharColor()
+                // \x1b[38;5;<color>m <char> \x1b[0m
+                pos += sprintf(&outBuffer[pos],
+                    "\x1b[38;5;%dm%c\x1b[0m",
+                    color, ch
+                );
             }
-            // printf("%c", map[mapY][mapX]);
+
+            // ขอบขวา + ขึ้นบรรทัดใหม่
+            pos += sprintf(&outBuffer[pos], "|\n");
         }
-        printf("|\n");
+
+        // วาดเส้นล่าง
+        pos += sprintf(&outBuffer[pos], "|");
+        for(int i = 0; i < mapXlen; i++) pos += sprintf(&outBuffer[pos], "-");
+        pos += sprintf(&outBuffer[pos], "|\n");
+
+        pos += sprintf(&outBuffer[pos],
+            "\nScore : %d\n",
+            Score - 1
+        );
+
+        outBuffer[pos] = '\0';
+
+        // พ่นออกจอ
+        printf("%s", outBuffer);
     }
-    printf("|");
-    for(int i = 0; i < mapXlen; i++) {
-        printf("-");
-    }
-    printf("|\n");
 }
 
 void Create_Snake() {
@@ -174,18 +213,18 @@ int main() {
 
     while(1) {
         // loop
-        printf("\033[2J");
-        printf("\033[H");
+        // printf("\033[2J");
+        // printf("\033[H");
         
-        Start_map();
+        // Start_map();
         Snake_map();
         clear_map();
         Create_Snake();
 
-        showMap();
+        Renderer_Buffer();
         
-        printf("\n");
-        printf("Score : %d\n", Score - 1);
+        // printf("\n");
+        // printf("Score : %d\n", Score - 1);
 
         if (_kbhit()) {
             key = _getch();
@@ -216,9 +255,10 @@ int main() {
         }
 
         // FPS
-        FPS = 1000 / (FPS_Game + Score_FPS);
-        clock_FPS = !clock_FPS;
-        Sleep(FPS); // delay(FPS)
+        // FPS = 1000 / (FPS_Game + Score_FPS);
+        // clock_FPS = !clock_FPS;
+        // Sleep(FPS); // delay(FPS)
+        Sleep(150);
     }
 
     return 0;
